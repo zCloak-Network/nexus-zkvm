@@ -8,7 +8,7 @@ use crate::error::*;
 use crate::pp::load_pp;
 use crate::srs::load_srs;
 use crate::types::*;
-use crate::{LOG_TARGET, TERMINAL_MODE};
+use crate::LOG_TARGET;
 
 pub fn gen_key(pp: &ComPP, srs: &SRS) -> Result<SpartanKey, ProofError> {
     let key = SNARK::setup(pp, srs)?;
@@ -37,13 +37,7 @@ pub fn gen_key_to_file(pp_file: &str, srs_file: &str, key_file: &str) -> Result<
         path =?srs_file,
         "Reading the SRS",
     );
-    let mut term = nexus_tui::TerminalHandle::new(TERMINAL_MODE);
-    let srs = {
-        let mut term_ctx = term.context("Loading").on_step(|_step| "SRS".into());
-        let _guard = term_ctx.display_step();
-
-        load_srs(srs_file)?
-    };
+    let srs = { load_srs(srs_file)? };
 
     tracing::info!(
         target: LOG_TARGET,
@@ -58,25 +52,13 @@ pub fn gen_key_to_file(pp_file: &str, srs_file: &str, key_file: &str) -> Result<
         "Reading the Nova public parameters",
     );
 
-    let pp: ComPP = {
-        let mut term_ctx = term
-            .context("Loading")
-            .on_step(|_step| "Nova public parameters".into());
-        let _guard = term_ctx.display_step();
-
-        load_pp(pp_file)?
-    };
+    let pp: ComPP = load_pp(pp_file)?;
 
     tracing::info!(
         target: LOG_TARGET,
         key_file =?key_file,
         "Generating Spartan key parameters",
     );
-
-    let mut term_ctx = term
-        .context("Generating")
-        .on_step(|_step| "Spartan key".into());
-    let _guard = term_ctx.display_step();
 
     let key: SpartanKey = gen_key(&pp, &srs)?;
     save_key(key, key_file)
@@ -88,7 +70,6 @@ pub fn gen_or_load_key(
     pp_file: Option<&str>,
     srs_file: Option<&str>,
 ) -> Result<SpartanKey, ProofError> {
-    let mut term = nexus_tui::TerminalHandle::new(TERMINAL_MODE);
     let key: SpartanKey = if gen {
         tracing::info!(
             target: LOG_TARGET,
@@ -102,11 +83,7 @@ pub fn gen_or_load_key(
             path =?srs_file,
             "Reading the SRS",
         );
-        let srs = {
-            let mut term_ctx = term.context("Loading").on_step(|_step| "SRS".into());
-            let _guard = term_ctx.display_step();
-            load_srs(srs_file)?
-        };
+        let srs = load_srs(srs_file)?;
         tracing::info!(
             target: LOG_TARGET,
             path =?srs_file,
@@ -121,11 +98,6 @@ pub fn gen_or_load_key(
             "Reading the Nova public parameters",
         );
 
-        let mut term_ctx = term
-            .context("Setting up")
-            .on_step(|_step| "Spartan key".into());
-        let _guard = term_ctx.display_step();
-
         let pp: ComPP = load_pp(pp_file)?;
 
         gen_key(&pp, &srs)?
@@ -135,10 +107,6 @@ pub fn gen_or_load_key(
             path = ?pp_file,
             "Loading Spartan key",
         );
-        let mut term_ctx = term
-            .context("Loading")
-            .on_step(|_step| "Spartan key".into());
-        let _guard = term_ctx.display_step();
 
         load_key(key_file)?
     };

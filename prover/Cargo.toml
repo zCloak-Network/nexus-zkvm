@@ -22,7 +22,6 @@ zstd = { version = "0.12", default-features = false }
 nexus-riscv = { path = "../riscv" }
 nexus-vm = { path = "../vm" }
 nexus-nova = { path = "../nova", features = ["spartan"] }
-nexus-tui = { path = "../tools/tui" }
 spartan = { path = "../spartan", package = "ark-spartan" }
 
 tracing = "0.1"

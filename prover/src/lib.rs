@@ -21,11 +21,6 @@ use crate::{
     types::{ComPCDNode, ComPP, ComProof, IVCProof, PCDNode, ParPP, SeqPP, SpartanKey},
 };
 
-#[cfg(feature = "verbose")]
-const TERMINAL_MODE: nexus_tui::Mode = nexus_tui::Mode::Enabled;
-#[cfg(not(feature = "verbose"))]
-const TERMINAL_MODE: nexus_tui::Mode = nexus_tui::Mode::Disabled;
-
 pub const LOG_TARGET: &str = "nexus-prover";
 
 pub fn save_proof<P: CanonicalSerialize>(proof: P, path: &Path) -> anyhow::Result<()> {
@@ -34,10 +29,6 @@ pub fn save_proof<P: CanonicalSerialize>(proof: P, path: &Path) -> anyhow::Resul
         path = %path.display(),
         "Saving the proof",
     );
-
-    let mut term = nexus_tui::TerminalHandle::new(TERMINAL_MODE);
-    let mut context = term.context("Saving").on_step(|_step| "proof".into());
-    let _guard = context.display_step();
 
     let mut buf = Vec::new();
 
@@ -55,10 +46,6 @@ pub fn load_proof<P: CanonicalDeserialize>(path: &Path) -> Result<P, ProofError>
         path = %path.display(),
         "Loading the proof",
     );
-
-    let mut term = nexus_tui::TerminalHandle::new(TERMINAL_MODE);
-    let mut context = term.context("Loading").on_step(|_step| "proof".into());
-    let _guard = context.display_step();
 
     let proof: P = P::deserialize_compressed(reader)?;
 
@@ -82,23 +69,7 @@ pub fn prove_seq(pp: &SeqPP, trace: Trace) -> Result<IVCProof, ProofError> {
 
     let num_steps = tr.steps();
 
-    let mut term = nexus_tui::TerminalHandle::new(TERMINAL_MODE);
-    let mut term_ctx = term
-        .context("Computing")
-        .on_step(|step| format!("step {step}"))
-        .num_steps(num_steps)
-        .with_loading_bar("Proving")
-        .completion_header("Proved")
-        .completion_stats(move |elapsed| {
-            format!(
-                "{num_steps} step(s) in {elapsed}; {:.2} instructions / second",
-                icount as f32 / elapsed.as_secs_f32()
-            )
-        });
-
     for _ in 0..num_steps {
-        let _guard = term_ctx.display_step();
-
         proof = IVCProof::prove_step(proof, pp, &tr)?;
     }
 
@@ -129,25 +100,9 @@ macro_rules! prove_par_impl {
                 format!("{step_type} {step}")
             };
 
-            let mut term = nexus_tui::TerminalHandle::new(TERMINAL_MODE);
-            let mut term_ctx = term
-                .context("Computing")
-                .on_step(on_step)
-                .num_steps(num_steps)
-                .with_loading_bar("Proving")
-                .completion_header("Proved")
-                .completion_stats(move |elapsed| {
-                    format!(
-                        "tree root in {elapsed}; {:.2} instructions / second",
-                        (k * num_steps) as f32 / elapsed.as_secs_f32()
-                    )
-                });
-
             let mut vs = (0..num_steps)
                 .step_by(2)
                 .map(|i| {
-                    let _guard = term_ctx.display_step();
-
                     let v = <$node_type>::prove_leaf(&pp, &tr, i, &tr.input(i)?)?;
                     Ok(v)
                 })
@@ -160,7 +115,6 @@ macro_rules! prove_par_impl {
                 vs = vs
                     .chunks(2)
                     .map(|ab| {
-                        let _guard = term_ctx.display_step();
                         let c = <$node_type>::prove_parent(&pp, &tr, &ab[0], &ab[1])?;
                         Ok(c)
                     })
@@ -184,11 +138,6 @@ pub fn compress(
         target: LOG_TARGET,
         "Compressing the proof",
     );
-    let mut term = nexus_tui::TerminalHandle::new(TERMINAL_MODE);
-    let mut term_ctx = term
-        .context("Compressing")
-        .on_step(|_step| "the proof".into());
-    let _guard = term_ctx.display_step();
 
     let compressed_pcd_proof = SNARK::compress(compression_pp, key, node)?;
 
@@ -204,11 +153,6 @@ pub fn verify_compressed(
         target: LOG_TARGET,
         "Verifying the compressed proof",
     );
-    let mut term = nexus_tui::TerminalHandle::new(TERMINAL_MODE);
-    let mut term_ctx = term
-        .context("Verifying")
-        .on_step(|_step| "compressed proof".into());
-    let _guard = term_ctx.display_step();
 
     SNARK::verify(key, params, proof)?;
     Ok(())
