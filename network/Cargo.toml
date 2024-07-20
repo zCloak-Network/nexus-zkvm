@@ -34,11 +34,8 @@ ark-ff.workspace = true
 ark-ec.workspace = true
 ark-serialize.workspace = true
 
-nexus-config = { path = "../config" }
-nexus-riscv = { path = "../riscv" }
-nexus-vm = { path = "../vm" }
-nexus-prover = { path = "../prover" }
-hex = "0.4.3"
+nexus-core = { path = "../core" }
+hex = { workspace = true }
 
 [features]
 default = [ "snmalloc" ]

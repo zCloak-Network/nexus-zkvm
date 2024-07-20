@@ -15,7 +15,7 @@ rustup target add riscv32i-unknown-none-elf
 ```
 
 Once your compiler is setup, the easiest way to start a new
-project is to install the `nexus-tools` crate, and use the
+project is to install the `cargo-nexus` crate, and use the
 `cargo nexus new` command. You can also setup your new
 project manually as described below.
 
@@ -29,7 +29,7 @@ cargo add nexus-rt
 ```
 
 Next, for convenience, you can set the default target and
-linker flags for the project in the `.cargo/config` file
+linker flags for the project in the `.cargo/config.toml` file
 under the project directory. The contents of the file should
 be:
 
@@ -53,8 +53,7 @@ simple way to make proving more efficient.
 Finally, a minimal `main.rs` file may look like:
 
 ```rust
-#![no_std]
-#![no_main]
+#![cfg_attr(target_arch = "riscv32", no_std, no_main)]
 
 #[nexus_rt::main]
 fn main() {}
@@ -69,8 +68,8 @@ function directly.  The fourth line brings the nexux-rt
 `entry` macro into scope.  This macro is used to mark the
 `main` function as the starting point of the program.
 
-To run your program, you can use either the `nexus-tools`,
-or the `nexus-riscv` crate. The `nexus-tools` uses the
+To run your program, you can use either the `cargo-nexus`,
+or the `nexus-riscv` crate. The `cargo-nexus` uses the
 `nexus-riscv` crate internally. To use the `nexus-riscv`
 crate, compile the crate and use the included commend-line
 tool:

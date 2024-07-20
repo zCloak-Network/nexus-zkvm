@@ -3,34 +3,35 @@ resolver = "2"
 members = [
     "runtime",
     "examples",
-    "riscv",
     "vm",
-    "tools",
-    "tools/tools-dev",
-    "tools/tui",
+    "cli",
+    "cli/progress-bar",
     "config",
     "config/serde_wrapper",
-    "prover",
     "network",
+    "network/rpc/common",
+    "network/rpc/traits",
     "nova",
     "spartan",
-    "api",
+    "core",
+    "jolt",
+    "sdk",
 ]
 default-members = [
-    "riscv",
     "vm",
-    "tools",
-    "prover",
+    "cli",
     "network",
     "nova",
+    "runtime",
     "spartan",
-    "api",
+    "core",
+    "sdk",
 ]
 exclude = ["nova-benches"]
 
 [workspace.package]
 edition = "2021"
-version = "1.0.0"
+version = "0.2.0"
 authors = ["The Nexus Team <hello@nexus.xyz>"]
 homepage = "https://nexus.xyz/"
 repository = "https://github.com/nexus-xyz/nexus-zkvm/"
@@ -43,6 +44,11 @@ clap = { version = "4.3", features = ["derive"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 elf = { version = "0.7", default-features = false, features = ["std"] }
+
+jsonrpsee = { version = "0.23", default-features = false }
+
+sha3 = { version = "0.10", default-features = false }
+hex = { version = "0.4.3" }
 
 ark-crypto-primitives = { version = "0.4.0", features = [
     "r1cs",
@@ -62,7 +68,7 @@ ark-poly = "0.4.0"
 ark-poly-commit = "0.4.0"
 
 ark-bn254 = "0.4.0"
-ark-grumpkin = "0.4.0"
+ark-grumpkin = { git = "https://github.com/arkworks-rs/curves/", rev = "8c0256a" }
 ark-pallas = "0.4.0"
 ark-vesta = "0.4.0"
 ark-test-curves = { version = "0.4.2", features = ["bls12_381_curve"] }
@@ -82,7 +88,6 @@ ark-poly-commit = { git = "https://github.com/arkworks-rs/poly-commit/", rev = "
 
 # note bls is using a different commit from the other curves
 ark-bn254 = { git = "https://github.com/arkworks-rs/curves/", rev = "8c0256a" }
-ark-grumpkin = { git = "https://github.com/arkworks-rs/curves/", rev = "8c0256a" }
 ark-pallas = { git = "https://github.com/arkworks-rs/curves/", rev = "8c0256a" }
 ark-vesta = { git = "https://github.com/arkworks-rs/curves/", rev = "8c0256a" }
 ark-bls12-381 = { git = "https://github.com/arkworks-rs/curves/", rev = "3fded1f" }

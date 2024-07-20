@@ -10,37 +10,50 @@ jobs:
   check-fmt:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
           toolchain: stable
       - run: cargo fmt --all --check
       - run: cd nova-benches && cargo fmt --check
 
-  build:
+  check-build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
           toolchain: stable
-      - run: cargo build --all-features
-      - run: cd nova-benches && cargo bench --no-run
+          target: riscv32i-unknown-none-elf
+      - run: cargo check --all-features
+      - run: cargo check --all-features --examples
+      - run: cargo check -p example --target=riscv32i-unknown-none-elf
+      - run: cd nova-benches && cargo check --benches
 
   cargo-clippy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
           toolchain: stable
       - run: cargo clippy --all-targets --all-features
 
   test:
+    needs: check-build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
           toolchain: stable
       - run: cargo test -r --all-features
+
+  test-smoke:
+    needs: check-build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: rustup target add riscv32i-unknown-none-elf
+      - run: assets/scripts/smoke.sh examples/src/bin/fib3.rs
+      - run: assets/scripts/smoke.sh examples/src/bin/hello.rs

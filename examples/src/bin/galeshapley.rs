@@ -1,5 +1,4 @@
-#![no_std]
-#![no_main]
+#![cfg_attr(target_arch = "riscv32", no_std, no_main)]
 
 extern crate alloc;
 use alloc::collections::BTreeSet;
@@ -7,7 +6,7 @@ use alloc::string::ToString;
 use alloc::vec;
 use alloc::vec::Vec;
 
-use nexus_rt::{print, println, Write};
+use nexus_rt::{print, println};
 
 fn stable_matching(
     n: usize,
@@ -23,9 +22,9 @@ fn stable_matching(
         let prefs = &employer_prefs[next];
 
         for c in prefs {
-            if candidates.contains(&c) {
+            if candidates.contains(c) {
                 hires[next] = Some(*c);
-                assert!(candidates.remove(&c));
+                assert!(candidates.remove(c));
 
                 break;
             } else {

@@ -7,14 +7,8 @@
 //! These matrices are meant to be used at compile-time as a
 //! source for generating constraints over a target field.
 
-#![allow(clippy::wrong_self_convention)]
-
-// Historical note: this structure was originally used as
-// an intermediate structure before translating to either
-// bellman or arkworks. In the current code we only support
-// arkworks, and perhaps should be rewritten.
-
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
+use std::hash::Hash;
 use std::ops::Range;
 
 use ark_bn254::FrConfig;
@@ -74,11 +68,13 @@ impl R1CS {
         }
     }
 
+    #[allow(dead_code)]
     #[inline]
     pub fn input(&self) -> &[F] {
         &self.w[self.input_range()]
     }
 
+    #[allow(dead_code)]
     #[inline]
     pub fn output(&self) -> &[F] {
         &self.w[self.output_range()]
@@ -113,6 +109,7 @@ impl R1CS {
         if self.vars.contains_key(name) {
             panic!("local variable override {name}");
         }
+
         let n = self.new_var(name);
         self.locals.push(name.to_string());
         n
@@ -155,18 +152,6 @@ impl R1CS {
         self.c.push(c);
     }
 
-    pub fn equal_scalar(&mut self, name: &str, x: F) {
-        self.constraint(|cs, a, b, c| {
-            a[cs.var(name)] = ONE;
-            b[0] = ONE;
-            c[0] = x;
-        });
-    }
-
-    pub fn equal(&mut self, name: &str, val: u32) {
-        self.equal_scalar(name, F::from(val))
-    }
-
     pub fn set_eq(&mut self, name: &str, var: &str) -> usize {
         let vj = self.var(var);
         let j = self.new_var(name);
@@ -190,24 +175,8 @@ impl R1CS {
         j
     }
 
-    pub fn not(&mut self, output: &str, input: &str) -> usize {
-        let i = self.var(output);
-        let j = self.var(input);
-        self.constraint(|_cs, a, b, c| {
-            a[0] = ONE;
-            a[j] = MINUS;
-            b[0] = ONE;
-            c[i] = ONE;
-        });
-        i
-    }
-
-    pub fn set_not(&mut self, output: &str, input: &str) -> usize {
-        self.set_field_var(output, ONE - self.get_var(input));
-        self.not(output, input)
-    }
-
-    pub fn to_bits(&mut self, name: &str, val: u32) -> usize {
+    #[allow(clippy::wrong_self_convention)]
+    pub fn to_bits(&mut self, name: &str, val: u32) {
         let vj = self.set_var(name, val);
         let js: Vec<usize> = (0..32)
             .map(|i| self.set_bit(&format!("{name}_{i}"), ((val >> i) & 1) == 1))
@@ -220,19 +189,14 @@ impl R1CS {
             b[0] = ONE;
             c[vj] = ONE;
         });
-        vj
     }
 
-    pub fn from_bits(&mut self, output: &str, val: u32, from: &str, start: u32, end: u32) -> usize {
-        let j = self.set_var(output, val);
+    pub fn eqi(&mut self, v0: &str, x: F) {
         self.constraint(|cs, a, b, c| {
-            for i in (start..end).rev() {
-                a[cs.var(&format!("{from}_{i}"))] = F::from(1u64 << (i - start));
-            }
+            a[cs.var(v0)] = ONE;
             b[0] = ONE;
-            c[j] = ONE;
+            c[0] = x;
         });
-        j
     }
 
     pub fn add(&mut self, v0: &str, v1: &str, v2: &str) {
@@ -242,11 +206,6 @@ impl R1CS {
             b[0] = ONE;
             c[cs.var(v0)] = ONE;
         });
-    }
-
-    pub fn set_add(&mut self, v0: &str, v1: &str, v2: &str) {
-        self.set_field_var(v0, self.get_var(v1) + self.get_var(v2));
-        self.add(v0, v1, v2)
     }
 
     pub fn addi(&mut self, v0: &str, v1: &str, x: F) {
@@ -266,11 +225,6 @@ impl R1CS {
         });
     }
 
-    pub fn set_mul(&mut self, v0: &str, v1: &str, v2: &str) {
-        self.set_field_var(v0, self.get_var(v1) * self.get_var(v2));
-        self.mul(v0, v1, v2)
-    }
-
     pub fn muli(&mut self, v0: &str, v1: &str, x: F) {
         self.constraint(|cs, a, b, c| {
             a[0] = x;
@@ -279,6 +233,15 @@ impl R1CS {
         });
     }
 
+    // at least one of the variables is zero
+    pub fn nand(&mut self, v0: &str, v1: &str) {
+        self.constraint(|cs, a, b, _c| {
+            a[cs.var(v0)] = ONE;
+            b[cs.var(v1)] = ONE;
+        })
+    }
+
+    #[allow(dead_code)]
     pub fn merge(&mut self, cs: &Self) {
         let left_len = self.w.len();
         let len = left_len + cs.w.len();
@@ -300,30 +263,39 @@ impl R1CS {
         })
     }
 
-    // note: is_sat is only used in tests, so performance is not
-    // too important.
+    #[allow(dead_code)]
     pub fn is_sat(&self) -> bool {
-        assert!(self.a.len() == self.b.len());
-        assert!(self.a.len() == self.c.len());
+        debug_assert!(self.a.len() == self.b.len());
+        debug_assert!(self.a.len() == self.c.len());
 
+        #[cfg(debug_assertions)]
         for m in [&self.a, &self.b, &self.c] {
             for v in m {
-                assert!(v.len() == self.w.len());
+                debug_assert!(v.len() == self.w.len());
             }
         }
 
+        #[rustfmt::skip]
         fn dot(a: &V, b: &V) -> F {
-            a.iter().zip(b).map(|(a, b)| a * b).sum()
+            a.iter()
+             .zip(b)
+             .map(|(a,b)| a * b)
+             .sum()
         }
 
-        fn multiply_vec(m: &M, v: &V) -> Vec<F> {
-            m.iter().map(|r| dot(r, v)).collect()
+        #[rustfmt::skip]
+        fn MxV(m: &M, v: &V) -> Vec<F> {
+            m.iter()
+             .map(|r| dot(r,v))
+             .collect()
         }
 
-        let x = multiply_vec(&self.a, &self.w);
-        let y = multiply_vec(&self.b, &self.w);
-        let z = multiply_vec(&self.c, &self.w);
+        let x = MxV(&self.a, &self.w);
+        let y = MxV(&self.b, &self.w);
+        let z = MxV(&self.c, &self.w);
 
+        #[cfg(debug_assertions)]
+        #[allow(clippy::needless_range_loop)]
         for i in 0..x.len() {
             if x[i] * y[i] != z[i] {
                 println!("constraint {i} not satisfied");
@@ -361,9 +333,20 @@ impl R1CS {
     }
 }
 
+fn unique_values<Elm: Eq + Hash>(set: &[Elm]) -> bool {
+    let mut seen = HashSet::new();
+    for v in set.iter() {
+        if !seen.insert(v) {
+            return false;
+        }
+    }
+    true
+}
+
 pub fn member(cs: &mut R1CS, name: &str, k: u32, set: &[u32]) {
     debug_assert!(set.len() > 1);
     debug_assert!(set.contains(&k));
+    debug_assert!(unique_values(set));
 
     // Compute constant that comes from evaulating
     // (x - s0)(x - s1)...(x - s{n - 1}) / (x - sk)
@@ -418,9 +401,10 @@ pub fn member(cs: &mut R1CS, name: &str, k: u32, set: &[u32]) {
 
     // build constraints: l_n-1 = r_0 = 0
     // x(x-s1)...(x-s{n-1}) = 0
-    cs.equal_scalar("r0", ZERO);
-    cs.equal_scalar(&format!("l{}", n - 1), ZERO);
+    cs.eqi("r0", ZERO);
+    cs.eqi(&format!("l{}", n - 1), ZERO);
 
+    #[allow(clippy::needless_range_loop)]
     for i in 0..n {
         //set x-k variables
         let si = ZERO - F::from(set[i]);
@@ -575,9 +559,9 @@ pub fn store_reg(cs: &mut R1CS, input: &str, output: &str, rs: u32) {
 
     // build constraints
     for i in 1..32 {
-        // rsx_i = (1 - rs_i=i) * x'_i
+        // rsx_i = (1 - rs_i=i) * x_i
         let j1 = cs.var(&format!("{input}={i}"));
-        let j2 = cs.var(&format!("x'{i}"));
+        let j2 = cs.var(&format!("x{i}"));
         let j3 = cs.var(&format!("rsx{i}"));
         cs.constraint(|_cs, a, b, c| {
             a[0] = ONE;
@@ -627,26 +611,15 @@ mod test {
     }
 
     #[test]
-    fn test_from_bits() {
+    fn test_set_bit() {
         let mut cs = R1CS::default();
-        let x = cs.to_bits("x", 0xcccccccc);
-        let y = cs.from_bits("y", 0xcccccccc, "x", 0, 32);
+        cs.set_bit("b0", false);
+        cs.set_bit("b1", true);
+        cs.eqi("b0", ZERO);
+        cs.eqi("b1", ONE);
+        cs.addi("b1", "b0", ONE);
+        cs.mul("b0", "b1", "b0");
         assert!(cs.is_sat());
-        assert_eq!(cs.w[x], cs.w[y]);
-
-        let mut cs = R1CS::default();
-        let _ = cs.to_bits("x", 0xcccccccc);
-        let _ = cs.from_bits("y", 0xcccccccc, "x", 0, 32);
-        let z = cs.from_bits("z", 0xcc, "x", 8, 16);
-        assert!(cs.is_sat());
-        assert_eq!(cs.w[z], F::from(0xcc));
-
-        let mut cs = R1CS::default();
-        let _ = cs.to_bits("x", 0xcccccccc);
-        let _ = cs.from_bits("y", 0xcccccccc, "x", 0, 32);
-        let z = cs.from_bits("z", 0x33, "x", 2, 8);
-        assert!(cs.is_sat());
-        assert_eq!(cs.w[z], F::from(0x33));
     }
 
     fn test_mem(set: &[u32]) {
@@ -670,6 +643,13 @@ mod test {
         test_mem(&[2, 3]);
         test_mem(&[4, 7, 11, 19]);
         test_mem(&[57, 67, 77, 107, 117, 119]);
+    }
+
+    #[test]
+    #[cfg(debug_assertions)]
+    #[should_panic(expected = "assertion failed: unique_values(set)")]
+    fn test_member_dup() {
+        test_mem(&[2, 2]);
     }
 
     fn test_sel(n: u32) {

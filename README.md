@@ -1,16 +1,6 @@
-<p align="center">
-  <p align="center">
-   <img width="150" height="150" src="assets/logo.png" alt="Logo">
-  </p>
- <h1 align="center"><b>The Nexus zkVM</b></h1>
- <p align="center">
-  The zero-knowledge virtual machine.
-    <br />
-    <a href="https://nexus.xyz"><strong>nexus.xyz »</strong></a>
-  </p>
-</p>
+# The Nexus zkVM
 
-<div align="center">
+<div align="left">
     <a href="https://t.me/nexus_zkvm">
         <img src="https://img.shields.io/endpoint?color=neon&logo=telegram&label=chat&url=https%3A%2F%2Fmogyo.ro%2Fquart-apis%2Ftgmembercount%3Fchat_id%3Dnexus_zkvm"/></a>
     <a href="https://github.com/nexus-xyz/nexus-zkvm/graphs/contributors">
@@ -25,9 +15,13 @@
         <img src="https://img.shields.io/badge/license-APACHE-blue"/></a>
 </div>
 
-# The Nexus zkVM
+<p align="center">
+  <p align="center">
+   <img width="100%" src="assets/nexus_docs-header.png" alt="Logo">
+  </p>
+</p>
 
-The Nexus zkVM is a modular, extensible, open-source, and massively-parallelized zkVM, designed to run at *a trillion CPU cycles proved per second* given enough machine power.
+The Nexus zkVM is a modular, extensible, open-source, and highly-parallelized zkVM, designed to run at *a trillion CPU cycles proved per second* given enough machine power.
 
 ## Folding schemes
 
@@ -39,7 +33,9 @@ If you're interested in our implementation of folding schemes, check the [`nexus
 
 First, install Rust: https://www.rust-lang.org/tools/install.
 
-With the RISC-V target:
+Also, make sure you have a working version of [cmake](https://cmake.org/).
+
+Next, install the RISC-V target:
 
 ```shell
 rustup target add riscv32i-unknown-none-elf
@@ -48,7 +44,7 @@ rustup target add riscv32i-unknown-none-elf
 Then, install the Nexus zkVM:
 
 ```shell
-cargo install --git https://github.com/nexus-xyz/nexus-zkvm nexus-tools --tag 'v1.0.0'
+cargo install --git https://github.com/nexus-xyz/nexus-zkvm cargo-nexus --tag 'v0.2.0'
 ```
 
 Verify the installation:
@@ -78,8 +74,7 @@ This will create a new Rust project directory with the following structure:
 As an example, you can change the content of `./src/main.rs` to:
 
 ```rust
-#![no_std]
-#![no_main]
+#![cfg_attr(target_arch = "riscv32", no_std, no_main)]
 
 fn fib(n: u32) -> u32 {
     match n {
